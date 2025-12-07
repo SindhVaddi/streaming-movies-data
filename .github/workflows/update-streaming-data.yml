@@ -1,9 +1,9 @@
-name: Update streaming movies dataset
+name: Update all movie datasets
 
 on:
   schedule:
-    - cron: "0 3 * * *"   # Runs every day at 03:00 UTC
-  workflow_dispatch:       # Allows manual run from the Actions tab
+    - cron: "0 3 * * *"     # runs every day at 3:00 UTC
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -17,29 +17,57 @@ jobs:
       KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
 
     steps:
-      - name: Checkout repo
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install kaggle
+      - name: Install Kaggle
         run: pip install kaggle
 
-      - name: Download dataset from Kaggle
+      ##########################################
+      # STREAMING DATA (Netflix / Hulu / Prime)
+      ##########################################
+      - name: Download Streaming Dataset
         run: |
-          mkdir -p data
-          kaggle datasets download -d ruchi798/movies-on-netflix-prime-video-hulu-and-disney -p data --force
-          cd data
+          mkdir -p data/streaming
+          kaggle datasets download -d ruchi798/movies-on-netflix-prime-video-hulu-and-disney -p data/streaming --force
+          cd data/streaming
           unzip -o movies-on-netflix-prime-video-hulu-and-disney.zip
           rm movies-on-netflix-prime-video-hulu-and-disney.zip
 
-      - name: Commit and push updated data
+      ##########################################
+      # TMDB FULL MOVIES METADATA + CAST
+      ##########################################
+      - name: Download TMDB Dataset
+        run: |
+          mkdir -p data/tmdb
+          kaggle datasets download -d rounakbanik/the-movies-dataset -p data/tmdb --force
+          cd data/tmdb
+          unzip -o the-movies-dataset.zip
+          rm the-movies-dataset.zip
+
+      ##########################################
+      # IMDb DATASETS (Official)
+      ##########################################
+      - name: Download IMDb datasets
+        run: |
+          mkdir -p data/imdb
+          wget -O data/imdb/title.basics.tsv.gz https://datasets.imdbws.com/title.basics.tsv.gz
+          wget -O data/imdb/title.ratings.tsv.gz https://datasets.imdbws.com/title.ratings.tsv.gz
+          wget -O data/imdb/title.principals.tsv.gz https://datasets.imdbws.com/title.principals.tsv.gz
+          gzip -d data/imdb/*.gz
+
+      ##########################################
+      # Commit all datasets
+      ##########################################
+      - name: Commit and Push Data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/*
-          git commit -m "Update dataset from Kaggle" || echo "No changes to commit"
+          git commit -m "Updated all movie datasets" || echo "No changes to commit"
           git push
